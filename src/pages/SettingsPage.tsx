@@ -12,9 +12,17 @@ import {
   Timer,
   GraduationCap,
   CalendarDays,
+  Bell,
+  Sparkles,
 } from 'lucide-react';
 import { useStudyOS } from '@/context/StudyOSContext';
 import { parseISO, differenceInDays } from 'date-fns';
+import {
+  isNativePlatform,
+  checkNotificationPermission,
+  requestNotificationPermission,
+  sendTestNotification,
+} from '@/lib/notifications';
 
 export const SettingsPage: React.FC = () => {
   const {
@@ -210,6 +218,9 @@ export const SettingsPage: React.FC = () => {
         })()}
       </div>
 
+      {/* 2. Native Notifications & Device Alerts */}
+      <NotificationSettingsCard />
+
       {/* 3. Data Backup and Sovereignty */}
       <div className="academic-card p-6 space-y-4 max-md:bg-transparent max-md:border-transparent max-md:shadow-none max-md:p-4 max-md:rounded-none">
         <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2 pb-3 border-b border-slate-100">
@@ -217,7 +228,7 @@ export const SettingsPage: React.FC = () => {
         </h2>
 
         <p className="text-xs text-slate-600">
-          O StudyOS armazena todos os seus dados com segurança no navegador (LocalStorage). Você pode exportar
+          O StudyOS armazena todos os seus dados com segurança no navegador e dispositivo (LocalStorage). Você pode exportar
           um arquivo JSON completo para backup pessoal ou transferir entre dispositivos.
         </p>
 
@@ -252,8 +263,6 @@ export const SettingsPage: React.FC = () => {
             <RotateCcw className="w-4 h-4" />
             <span>Limpar Todos os Dados</span>
           </button>
-
-
         </div>
 
         {importSuccess === true && (
@@ -276,6 +285,191 @@ export const SettingsPage: React.FC = () => {
             <span>Ação executada com sucesso!</span>
           </div>
         )}
+      </div>
+    </div>
+  );
+};
+
+const NotificationSettingsCard: React.FC = () => {
+  const { settings, updateSettings } = useStudyOS();
+  const notif = settings.notifications || {
+    enabled: true,
+    taskReminders: true,
+    examReminders: true,
+    pomodoroAlarms: true,
+    hapticFeedback: true,
+    dailyReminderEnabled: false,
+    dailyReminderTime: '08:00',
+  };
+
+  const [permStatus, setPermStatus] = useState<'granted' | 'denied' | 'prompt' | 'prompt-with-rationale'>('prompt');
+  const [testSent, setTestSent] = useState(false);
+
+  React.useEffect(() => {
+    checkNotificationPermission().then(setPermStatus);
+  }, []);
+
+  const handleRequestPerm = async () => {
+    const ok = await requestNotificationPermission();
+    setPermStatus(ok ? 'granted' : 'denied');
+  };
+
+  const handleSendTest = async () => {
+    const ok = await sendTestNotification();
+    if (ok) {
+      setTestSent(true);
+      setTimeout(() => setTestSent(false), 3500);
+    }
+  };
+
+  const updateNotif = (partial: Partial<typeof notif>) => {
+    updateSettings({
+      notifications: {
+        ...notif,
+        ...partial,
+      },
+    });
+  };
+
+  return (
+    <div className="academic-card p-6 space-y-5 max-md:bg-transparent max-md:border-transparent max-md:shadow-none max-md:p-4 max-md:rounded-none">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div>
+          <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <Bell className="w-4 h-4 text-primary" /> Notificações Nativas & Alertas do Celular
+          </h2>
+          <p className="text-[11px] text-slate-500 mt-0.5">
+            Configure lembretes locais para prazos de entrega, datas de provas e alarmes de término do Pomodoro.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {isNativePlatform() ? (
+            <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200">
+              App Android Instalado
+            </span>
+          ) : (
+            <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+              Modo Web
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Permission banner */}
+      <div className="p-3 bg-slate-50 rounded-lg border border-slate-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2.5">
+          <div className={`w-2.5 h-2.5 rounded-full ${permStatus === 'granted' ? 'bg-emerald-500 ring-4 ring-emerald-100' : permStatus === 'denied' ? 'bg-rose-500' : 'bg-amber-500 ring-4 ring-amber-100'}`} />
+          <div>
+            <div className="font-semibold text-slate-900">
+              {permStatus === 'granted' ? 'Permissão de Notificação Concedida' : permStatus === 'denied' ? 'Permissão Bloqueada pelo Sistema' : 'Permissão de Notificação Pendente'}
+            </div>
+            <div className="text-[11px] text-slate-500">
+              {permStatus === 'granted' ? 'O aplicativo está autorizado a enviar alertas locais e alarmes em segundo plano.' : 'Autorize o StudyOS para receber lembretes de provas e alarmes com tela desligada.'}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {permStatus !== 'granted' && (
+            <button
+              onClick={handleRequestPerm}
+              className="px-3 py-1.5 bg-primary text-white rounded text-xs font-semibold hover:bg-slate-800 transition-colors shadow-sm"
+            >
+              Autorizar Notificações
+            </button>
+          )}
+
+          <button
+            onClick={handleSendTest}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-slate-700 border border-slate-200 rounded text-xs font-semibold hover:bg-slate-100 transition-colors shadow-2xs"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            <span>Testar Alerta</span>
+          </button>
+        </div>
+      </div>
+
+      {testSent && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-md text-xs text-emerald-800 flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>Notificação de teste disparada! Verifique a barra de status do seu celular.</span>
+        </div>
+      )}
+
+      {/* Toggle Options */}
+      <div className="space-y-3 pt-1 text-xs">
+        {/* Toggle General */}
+        <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50/70 transition-colors cursor-pointer">
+          <div>
+            <div className="font-semibold text-slate-900">Ativar Notificações do Sistema</div>
+            <div className="text-[11px] text-slate-500">Habilitar disparo de notificações locais agendadas no dispositivo.</div>
+          </div>
+          <input
+            type="checkbox"
+            checked={notif.enabled}
+            onChange={(e) => updateNotif({ enabled: e.target.checked })}
+            className="w-4 h-4 text-primary rounded border-slate-300 focus:ring-primary"
+          />
+        </label>
+
+        {/* Toggle Task Reminders */}
+        <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50/70 transition-colors cursor-pointer">
+          <div>
+            <div className="font-semibold text-slate-900">Lembretes de Prazos de Tarefas</div>
+            <div className="text-[11px] text-slate-500">Avisa 1 dia antes às 09:00 e na manhã do dia de entrega às 08:00.</div>
+          </div>
+          <input
+            type="checkbox"
+            disabled={!notif.enabled}
+            checked={notif.taskReminders}
+            onChange={(e) => updateNotif({ taskReminders: e.target.checked })}
+            className="w-4 h-4 text-primary rounded border-slate-300 focus:ring-primary disabled:opacity-50"
+          />
+        </label>
+
+        {/* Toggle Exam Reminders */}
+        <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50/70 transition-colors cursor-pointer">
+          <div>
+            <div className="font-semibold text-slate-900">Lembretes de Provas & Avaliações</div>
+            <div className="text-[11px] text-slate-500">Dispara alerta 2 dias antes e 1 dia antes para garantir tempo de revisão.</div>
+          </div>
+          <input
+            type="checkbox"
+            disabled={!notif.enabled}
+            checked={notif.examReminders}
+            onChange={(e) => updateNotif({ examReminders: e.target.checked })}
+            className="w-4 h-4 text-primary rounded border-slate-300 focus:ring-primary disabled:opacity-50"
+          />
+        </label>
+
+        {/* Toggle Pomodoro Alarms */}
+        <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50/70 transition-colors cursor-pointer">
+          <div>
+            <div className="font-semibold text-slate-900">Alarme Nativo do Pomodoro (Foco & Pausas)</div>
+            <div className="text-[11px] text-slate-500">Toca som e notifica mesmo se você bloquear a tela ou sair do app.</div>
+          </div>
+          <input
+            type="checkbox"
+            disabled={!notif.enabled}
+            checked={notif.pomodoroAlarms}
+            onChange={(e) => updateNotif({ pomodoroAlarms: e.target.checked })}
+            className="w-4 h-4 text-primary rounded border-slate-300 focus:ring-primary disabled:opacity-50"
+          />
+        </label>
+
+        {/* Toggle Haptics */}
+        <label className="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50/70 transition-colors cursor-pointer">
+          <div>
+            <div className="font-semibold text-slate-900">Vibração Háptica no Celular</div>
+            <div className="text-[11px] text-slate-500">Vibração sutil ao concluir tarefas, ciclos de pomodoro e interações principais.</div>
+          </div>
+          <input
+            type="checkbox"
+            checked={notif.hapticFeedback}
+            onChange={(e) => updateNotif({ hapticFeedback: e.target.checked })}
+            className="w-4 h-4 text-primary rounded border-slate-300 focus:ring-primary"
+          />
+        </label>
       </div>
     </div>
   );

@@ -42,8 +42,8 @@ export const Sidebar: React.FC = () => {
 
   return (
     <aside
-      className={`bg-white border-[#E2E8F0] flex select-none transition-all duration-300 z-40 shrink-0
-        max-md:w-full max-md:h-16 max-md:flex-row max-md:border-t max-md:px-2 max-md:overflow-visible max-md:items-center max-md:hide-scrollbar
+      className={`bg-white border-[#E2E8F0] flex select-none transition-all duration-300 z-40 shrink-0 safe-bottom
+        max-md:w-full max-md:min-h-16 max-md:flex-row max-md:border-t max-md:px-2 max-md:overflow-visible max-md:items-center max-md:hide-scrollbar
         md:relative md:flex-col md:min-h-[100dvh] md:border-r ${isCollapsed ? 'md:w-[72px]' : 'md:w-64'}
       `}
     >

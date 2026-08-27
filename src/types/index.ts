@@ -182,9 +182,20 @@ export interface PomodoroSettings {
   soundVolume: number;
 }
 
+export interface NotificationSettings {
+  enabled: boolean;
+  taskReminders: boolean;
+  examReminders: boolean;
+  pomodoroAlarms: boolean;
+  hapticFeedback: boolean;
+  dailyReminderEnabled: boolean;
+  dailyReminderTime: string; // "08:00"
+}
+
 export interface UserSettings {
   targetApprovalGrade: number; // default 7.0
   pomodoro: PomodoroSettings;
+  notifications?: NotificationSettings;
   activeSemesterId: string;
 }
 

@@ -41,7 +41,7 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <div className="sticky top-0 z-20 flex flex-col w-full bg-white shadow-sm md:shadow-none">
+    <div className="sticky top-0 z-20 flex flex-col w-full bg-white shadow-sm md:shadow-none safe-top">
       <header className="h-16 bg-white md:border-b border-[#E2E8F0] px-3 md:px-6 flex items-center justify-between">
       {/* Mobile Brand (Hidden on Desktop) */}
       <div className="flex items-center gap-2 md:hidden">

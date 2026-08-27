@@ -40,6 +40,15 @@ export const initialSettings: UserSettings = {
     soundEnabled: true,
     soundVolume: 0.7,
   },
+  notifications: {
+    enabled: true,
+    taskReminders: true,
+    examReminders: true,
+    pomodoroAlarms: true,
+    hapticFeedback: true,
+    dailyReminderEnabled: false,
+    dailyReminderTime: '08:00',
+  },
 };
 
 // Optional demo dataset for testing if the user explicitly requests in Settings

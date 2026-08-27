@@ -34,6 +34,13 @@ import {
 } from '@/lib/initialData';
 import { calculateSemesterHealth, generateSmartAlerts, generateDailyFocus } from '@/lib/intelligence';
 import confetti from 'canvas-confetti';
+import {
+  initializeNativeFeatures,
+  syncAllNotifications,
+  schedulePomodoroNotification,
+  cancelPomodoroNotification,
+  triggerHapticFeedback,
+} from '@/lib/notifications';
 
 interface ActivePomodoroState {
   isActive: boolean;
@@ -246,6 +253,16 @@ export const StudyOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(notes)); }, [notes]);
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings)); }, [settings]);
 
+  // Initialize native status bar & notification channels on mount
+  useEffect(() => {
+    initializeNativeFeatures();
+  }, []);
+
+  // Sync scheduled native notifications for upcoming tasks and exams
+  useEffect(() => {
+    syncAllNotifications(tasks, assessments, subjects, settings.notifications);
+  }, [tasks, assessments, subjects, settings.notifications]);
+
   // Sync inactive pomodoro with settings when settings change
   useEffect(() => {
     if (!activePomodoro.isActive) {
@@ -270,6 +287,8 @@ export const StudyOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }, 1000);
     } else if (activePomodoro.isActive && activePomodoro.timeLeft === 0) {
       // Completed timer!
+      triggerHapticFeedback('success');
+
       if (activePomodoro.mode === 'focus') {
         const plannedMins = Math.round(activePomodoro.totalDuration / 60);
         setLastFinishedSession({
@@ -411,10 +430,19 @@ export const StudyOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }) => {
       const dur = (options.durationMinutes || settings.pomodoro.focusDuration || 25) * 60;
       const cycles = options.totalCycles || settings.pomodoro.longBreakInterval || 4;
+      const mode = options.mode || 'focus';
+
+      triggerHapticFeedback('click');
+
+      if (settings.notifications?.pomodoroAlarms !== false) {
+        const subj = subjects.find((s) => s.id === options.subjectId);
+        schedulePomodoroNotification(dur, mode, subj?.name);
+      }
+
       setActivePomodoro({
         isActive: true,
         isPaused: false,
-        mode: options.mode || 'focus',
+        mode,
         timeLeft: dur,
         totalDuration: dur,
         subjectId: options.subjectId,
@@ -425,7 +453,7 @@ export const StudyOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
         startedAt: new Date().toISOString(),
       });
     },
-    [settings.pomodoro]
+    [settings.pomodoro, settings.notifications, subjects]
   );
 
   const setPomodoroCycles = useCallback((cycles: number) => {
@@ -445,14 +473,23 @@ export const StudyOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, []);
 
   const pausePomodoro = useCallback(() => {
+    triggerHapticFeedback('click');
+    cancelPomodoroNotification();
     setActivePomodoro((prev) => ({ ...prev, isPaused: true }));
   }, []);
 
   const resumePomodoro = useCallback(() => {
+    triggerHapticFeedback('click');
+    if (settings.notifications?.pomodoroAlarms !== false) {
+      const subj = subjects.find((s) => s.id === activePomodoro.subjectId);
+      schedulePomodoroNotification(activePomodoro.timeLeft, activePomodoro.mode, subj?.name);
+    }
     setActivePomodoro((prev) => ({ ...prev, isPaused: false }));
-  }, []);
+  }, [activePomodoro.timeLeft, activePomodoro.mode, activePomodoro.subjectId, settings.notifications, subjects]);
 
   const stopPomodoro = useCallback(() => {
+    triggerHapticFeedback('click');
+    cancelPomodoroNotification();
     setActivePomodoro((prev) => ({
       ...prev,
       isActive: false,
@@ -464,6 +501,8 @@ export const StudyOSProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [settings.pomodoro]);
 
   const skipPomodoro = useCallback(() => {
+    triggerHapticFeedback('click');
+    cancelPomodoroNotification();
     setActivePomodoro((prev) => ({
       ...prev,
       timeLeft: 0,
